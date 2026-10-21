@@ -163,13 +163,14 @@ filename_sets = {
     # "wanjuan_zh": "data2/step2_data_cleaning/wanjuan/wanjuan_zh/*jsonl",
     # "wanjuan_en": "data2/step2_data_cleaning/wanjuan/wanjuan_en/*jsonl",
     # "starcode": "data1/step2_data_cleaning/data_juicer_clean_code_data/*jsonl*"
-    "chat": "data1/step2_data_cleaning/data_juicer_clean_text_data/txt_data/*jsonl"
+    #"chat": "data1/step2_data_cleaning/data_juicer_clean_text_data/txt_data/*jsonl"
+    "chat":"./data/step1_unified_format/*jsonl"
 }
 def prepare(
-    source_path: Path = Path("/"),
+    source_path: Path = Path("./"),
     # tokenizer地址
-    checkpoint_dir: Path = Path("../model/tokenizer_from_qwen_moe_chat"),
-    destination_path: Path = Path("/data1/step3_final_data/chat"),
+    checkpoint_dir: Path = Path("./pretrain_modify_from_TinyLlama/model/tokenizer_from_qwen_moe_chat"),
+    destination_path: Path = Path("./data1/step3_final_data/chat"),
     sample: bool = False,
     match: str = "",
     max_files = 10000000000,
@@ -177,7 +178,8 @@ def prepare(
     block_size = 2048,
     # 一个数据分片有多少个序列
     # blocks_in_a_chunck=1024时，一个chunk是8M大小 
-    blocks_in_a_chunck = 1024*200,
+    #blocks_in_a_chunck = 1024*200,
+    blocks_in_a_chunck = 256,
     # 读取cache_lines_num行json数据后进行一次保存
     cache_lines_num = 10000,
     # 处理数据进程数

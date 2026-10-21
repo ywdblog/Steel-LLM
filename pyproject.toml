@@ -1,0 +1,33 @@
+[project]
+name = "steel-llm"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "jsonargparse>=4.52.0",
+    "numpy>=2.5.4",
+    "pyarrow>=26.0.0",
+    "tqdm>=4.70.1",
+    "torch",
+    "lightning>=2.6.6",
+    "transformers>=5.20.2",
+    "zstandard>=0.25.0",
+]
+
+[project.scripts]
+steel-llm = "steel_llm:main"
+
+[build-system]
+requires = ["uv_build>=0.13.4,<0.14.0"]
+build-backend = "uv_build"
+
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }

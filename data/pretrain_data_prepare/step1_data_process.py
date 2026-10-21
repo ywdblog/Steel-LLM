@@ -398,7 +398,10 @@ class StarcodeFormatHandler(FormatHandler):
     def __init__(self, input_path, output_path, dataset_name, language : list):
         super(StarcodeFormatHandler, self).__init__(input_path, output_path, dataset_name)
         self.language = language
-    
+        # 保证各语言的子文件夹存在
+        for lan in language:
+            os.makedirs(os.path.join(self.input_path, lan), exist_ok=True)
+
     def get_file_list(self) -> list:
         """或取输入路径下的全部文件，可以放一些文件名判断逻辑"""
         files = []
@@ -482,26 +485,30 @@ def test_run():
     fh.process_all()
 
 def main_run():
-    input_path_root = "/data/step0_raw"
-    output_path_root = "/data/step1_unified_format"
+    input_path_root = "./data/step0_raw"
+    output_path_root = "./data/step1_unified_format"
     if not os.path.exists(output_path_root):
         os.makedirs(output_path_root)
 
     dataset_process_info = {
         "baidu_baike": (input_path_root + "/baidu_baike", BaiduBaikeFormatHandler),
-        "baidu_QA": (input_path_root + "/baidu_wenda", BaiduQAFormatHandler),
-        "BELLE_2M": (input_path_root + "/BELLE/2M", BELLEFormatHandler),
-        "BELLE_3_5M": (input_path_root + "/BELLE/3_5M", BELLEConversationsFormatHandler),
-        "firefly": (input_path_root + "/firefly/train_1M", FireflyFormatHandler),
-        "moss": (input_path_root + "/moss", MossFormatHandler),
-        "zhihu": (input_path_root + "/zhihu/data", ZhihuFormatHandler),
-        "wiki_cn": (input_path_root + "/wiki_cn", WikiCNFormatHandler)
+        "baidu_QA": (input_path_root + "/baidu_QA", BaiduQAFormatHandler),
+        # "BELLE_2M": (input_path_root + "/BELLE/2M", BELLEFormatHandler),
+        # "BELLE_3_5M": (input_path_root + "/BELLE/3_5M", BELLEConversationsFormatHandler),
+        # "firefly": (input_path_root + "/firefly/train_1M", FireflyFormatHandler),
+        # "moss": (input_path_root + "/moss", MossFormatHandler),
+        # "zhihu": (input_path_root + "/zhihu/data", ZhihuFormatHandler),
+        # "wiki_cn": (input_path_root + "/wiki_cn", WikiCNFormatHandler)
     }
 
     for dataset_name, info in dataset_process_info.items():
         input_path = info[0]
         Handler = info[1]
         output_path = output_path_root + "/processed_{}.jsonl".format(dataset_name)
+
+        print(output_path)
+        # import sys 
+        # sys.exit(0)
         if os.path.exists(output_path):
             os.remove(output_path)
         fh = Handler(input_path, output_path, dataset_name)
@@ -510,6 +517,7 @@ def main_run():
     # 代码数据单独处理
     dataset_name = "starcode"
     input_path = input_path_root + "/starcode"
+    os.makedirs(input_path, exist_ok=True)
     output_path = output_path_root + "/processed_{}.jsonl".format(dataset_name)
     if os.path.exists(output_path):
         os.remove(output_path)
@@ -518,7 +526,7 @@ def main_run():
 
 
 if __name__ == "__main__":
-    test_mode = True
+    test_mode = False
     if test_mode:
         test_run()
     else: 
