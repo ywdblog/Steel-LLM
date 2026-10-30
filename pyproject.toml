@@ -3,16 +3,25 @@ name = "steel-llm"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = "==3.10.*"
 dependencies = [
     "jsonargparse>=4.52.0",
-    "numpy>=2.5.4",
-    "pyarrow>=26.0.0",
+    #"numpy>=2.5.4",
     "tqdm>=4.70.1",
     "torch",
     "lightning>=2.6.6",
-    "transformers>=5.20.2",
+    "transformers==4.39.2",
+    "triton",
+    "flash-attn",
     "zstandard>=0.25.0",
+    "loguru>=0.7.3",
+    "wandb>=0.31.0",
+    "pyarrow>=25.0.1",
+    "psutil>=7.2.2",
+    "accelerate>=1.15.0",
+    "peft>=0.21.2",
+    "tiktoken>=0.14.0",
+    "transformers-stream-generator>=0.0.5",
 ]
 
 [project.scripts]
@@ -22,12 +31,24 @@ steel-llm = "steel_llm:main"
 requires = ["uv_build>=0.13.4,<0.14.0"]
 build-backend = "uv_build"
 
+[tool.uv.sources]
+torch = { index = "jetson-ai-lab" }
+transformers = { index = "jetson-ai-lab" }
+triton = { index = "jetson-ai-lab" }
+flash-attn = { index = "jetson-ai-lab" }
+
 
 [[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
+name = "jetson-ai-lab"
+url = "https://pypi.jetson-ai-lab.io/jp6/cu126"  
 explicit = true
 
-[tool.uv.sources]
-torch = { index = "pytorch-cpu" }
-torchvision = { index = "pytorch-cpu" }
+
+#[[tool.uv.index]]
+#name = "pytorch-cpu"
+#url = "https://download.pytorch.org/whl/cpu"
+#explicit = true
+
+#[tool.uv.sources]
+#torch = { index = "pytorch-cpu" }
+#torchvision = { index = "pytorch-cpu" }

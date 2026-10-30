@@ -42,19 +42,24 @@ from modeling_steel import SteelForCausalLM, SteelDecoderLayer
 from steel_llm_utils import compatible_tiny_llama_config
 
 import logging
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
+
+logging.basicConfig(level=logging.WARNING)
 
 # model_name = "steel_llm_test_qwen1"
 name = "steel_llm"
-out_dir = Path("/data/gu_data/ckpt") / name
-TRAIN_DATA_DIR = Path("/data/gu_data/step3_input")
+out_dir = Path("./data/gu_data/ckpt") / name
+TRAIN_DATA_DIR = Path("./data1/step3_final_data/")
 # TRAIN_DATA_DIR = Path("/data/step3_train_input/test")
-MODEL_PATH = "../model/steel_modify_from_qwen_1_5"
+#MODEL_PATH = Path("../model/steel_modify_from_qwen_1_5")
+MODEL_PATH = Path(parent_dir) / "model" / "steel_modify_from_qwen_1_5"
+
 # todo: check block size
-BLOCK_SIZE = 2048
+BLOCK_SIZE =  256
 # bool / Path
 # resume model and data
-RESUME = Path("/data/gu_data/ckpt/steel_llm/step-860000-iter-6880000-ckpt")
+RESUME = Path("./data/gu_data/ckpt/step-000400-iter-003200-ckpt")
+RESUME = False #
 # RESUME = Path("/home/calfa100/gqs/Steel-LLM/pretrain_modify_from_TinyLlama/pretrain/out/steel_llm/step-200000-iter-1600000-ckpt")
 ONLY_RESUME_MODEL =  False
 ADD_NEW_DATA_DIR = None
@@ -63,14 +68,14 @@ IGNORE_INDEX = 151643
 USE_FLASH_ATTN =True # "auto"
 
 # Hyperparameters
-num_of_devices = 8
-global_batch_size = 64*num_of_devices
+num_of_devices = 1 #设备数量
+global_batch_size = 8 #64*num_of_devices # 多少条数据更新梯度
 learning_rate = 3e-4
-micro_batch_size = 8
+micro_batch_size = 1 # 8 ，一次前向读取多少条数据
 # cal step 1: 1640*10**9/4/2048/512 
 # cal day 1: 1800*10**9/4/2048/8/1.4/8/3600/24
 # cal day2: 1640*10**9/4/8/23800/3600/24
-max_step = 430000*2+220000
+max_step = 24000 # 430000*2+220000 # 优化器步（参数更新次数）
 # lr scheduler
 decay_lr = True
 lr_decay_step = int(max_step)
@@ -79,22 +84,20 @@ warmup_steps = 1_000
 #---
 log_step_interval = 20
 eval_iters = 100 # eval iter
-save_step_interval = 20000
-eval_step_interval = 20000
+save_step_interval = 6000 #20000
+eval_step_interval = 50 #20000
  
-
 weight_decay = 0.05
 beta1 = 0.9
 beta2 = 0.95
 grad_clip = 1.0
 
 batch_size = global_batch_size // num_of_devices
-gradient_accumulation_steps = batch_size // micro_batch_size
+gradient_accumulation_steps = batch_size // micro_batch_size # 训练循环跑多少次更新梯度
 assert gradient_accumulation_steps > 0
 warmup_iters = warmup_steps * gradient_accumulation_steps
 
-
-max_iters = max_step * gradient_accumulation_steps
+max_iters = max_step * gradient_accumulation_steps 
 lr_decay_iters = lr_decay_step * gradient_accumulation_steps
 log_iter_interval = log_step_interval * gradient_accumulation_steps
 
@@ -111,6 +114,8 @@ val_data_config = [
 
 hparams = {k: v for k, v in locals().items() if isinstance(v, (int, float, str)) and not k.startswith("_")}
 logger = step_csv_logger("out", name, flush_logs_every_n_steps=log_iter_interval)
+
+os.environ["WANDB_MODE"] = "offline" #test
 wandb_logger = WandbLogger()
 
 
@@ -125,8 +130,10 @@ def setup(
     block_size = BLOCK_SIZE,
     only_resume_model = ONLY_RESUME_MODEL,
 ) -> None:
-    precision = precision or get_default_supported_precision(training=True, tpu=False)
-    print(precision)
+    #precision = precision or get_default_supported_precision(training=True, tpu=False)
+    
+    # Light​​ning Fabric 有 true 和 mixed 两种精度
+    precision = "bf16-true"
     config = AutoConfig.from_pretrained(model_path,trust_remote_code=True)
     print(config)
     if devices > 1: 
@@ -141,11 +148,14 @@ def setup(
         )
     else:
         strategy = "auto"
+
     fabric = L.Fabric(devices=devices, strategy=strategy, precision=precision, loggers=[logger, wandb_logger])
     fabric.print(hparams)
-    # 添加其他参数
+
     config.model_path = model_path
-    config.use_flash_attn = USE_FLASH_ATTN
+    #config.use_flash_attn = USE_FLASH_ATTN
+    # 真正开启 flash_attention_2
+    config._attn_implementation = "flash_attention_2" if USE_FLASH_ATTN else "sdpa"
     config = compatible_tiny_llama_config(config, block_size)
     # todo: why not use?
     if devices > 1:
@@ -177,6 +187,7 @@ def main(fabric, train_data_dir, val_data_dir, resume, config, only_resume_model
     else:
         train_dataloader, val_dataloader = fabric.setup_dataloaders(train_dataloader, val_dataloader)
 
+
     fabric.seed_everything(3407)  # same seed for every process to init model (FSDP)
 
     fabric.print(f"Loading model with {config.__dict__}")
@@ -187,6 +198,9 @@ def main(fabric, train_data_dir, val_data_dir, resume, config, only_resume_model
         model.apply(model._init_weights) 
         # print(model.transformer.wte.weight)
 
+        # 
+        print(f"第0层注意力层类型: {type(model.model.layers[0].self_attn).__name__}")
+ 
     # 预估参数量和计算量
     fabric.print(f"Time to instantiate model: {time.perf_counter() - t0:.02f} seconds.")
     fabric.print(f"Total parameters {num_parameters(model):,}")
@@ -232,8 +246,9 @@ def main(fabric, train_data_dir, val_data_dir, resume, config, only_resume_model
 
     state["model"] = model
 
-
     train_time = time.perf_counter()
+
+ 
     train(fabric, state, train_dataloader, val_dataloader, monitor, resume, config, train_datasets, huggingface_format_model)
     fabric.print(f"Training time: {(time.perf_counter()-train_time):.2f}s")
     if fabric.device.type == "cuda":
@@ -247,12 +262,15 @@ def train(fabric, state, train_dataloader, val_dataloader, monitor, resume, conf
     if val_dataloader is not None:
         validate(fabric, model, val_dataloader)  # sanity check
 
+    import psutil
+
 
     total_lengths = 0
     total_t0 = time.perf_counter()
     
     initial_iter = state["iter_num"]
     loss_func = TritonCrossEntropyLoss(ignore_index = IGNORE_INDEX)
+
     fabric.print(f"start state: {state}") 
     for  train_data in train_dataloader:
         # resume loader state. This is not elegant but it works. Should rewrite it in the future.
@@ -276,18 +294,27 @@ def train(fabric, state, train_dataloader, val_dataloader, monitor, resume, conf
         with fabric.no_backward_sync(model, enabled=is_accumulating):
             output = model(input_ids)
             logits = output.logits
+
+            # 用 Triton 语言手写 GPU kernel，融合算子 节省显存
             loss = loss_func(logits, targets)
+
+            # 标准交叉熵
             # loss = torch.nn.functional.cross_entropy(logits.reshape(-1,logits.shape[-1]), targets.reshape(-1)) # raw torch loss
-            # loss = chunked_cross_entropy(logits, targets, chunk_size=0)
+            
+            # 分块交叉熵计算，每块的中间激活算完立刻释放，削低 backward 时的显存峰值
+            # loss = chunked_cross_entropy(logits, targets, chunk_size=128)
             fabric.backward(loss / gradient_accumulation_steps)
+
 
         if not is_accumulating:
             fabric.clip_gradients(model, optimizer, max_norm=grad_clip)
             optimizer.step()
             optimizer.zero_grad()
-            state["step_count"] += 1
-        
+            state["step_count"] += 1 #更新梯度多少次
+
+        # 相当于for循环来多少次
         state["iter_num"] += 1
+
         # input_id: B L 
         total_lengths += input_ids.size(1)
         t1 = time.perf_counter()
@@ -339,6 +366,19 @@ def train(fabric, state, train_dataloader, val_dataloader, monitor, resume, conf
             #     print(type(huggingface_format_model), type(model))
             #     huggingface_format_model.save_pretrained(os.path.join(checkpoint_path, f"huggingface-ckpt"))
             fabric.barrier()
+
+        if state["iter_num"] % 10 == 0:  
+            vm = psutil.virtual_memory()
+            sw = psutil.swap_memory()
+            fabric.print(
+                f"[MEM] iter={state['iter_num']} "
+                f"sys_avail={vm.available/1e9:.2f}GB sys_used={vm.used/1e9:.2f}GB "
+                f"buff_cache={getattr(vm, 'buffers', 0)/1e9:.2f}+{getattr(vm, 'cached', 0)/1e9:.2f}GB "
+                f"swap={sw.used/1e9:.2f}/{sw.total/1e9:.2f}GB "
+                f"torch_alloc={torch.cuda.memory_allocated()/1e9:.2f}GB "
+                f"torch_reserved={torch.cuda.memory_reserved()/1e9:.2f}GB "
+                f"rss={psutil.Process().memory_info().rss/1e9:.2f}GB"
+            )
         
 @torch.no_grad()
 def validate(fabric: L.Fabric, model: torch.nn.Module, val_dataloader: DataLoader) -> torch.Tensor:
@@ -351,10 +391,15 @@ def validate(fabric: L.Fabric, model: torch.nn.Module, val_dataloader: DataLoade
             break
         input_ids = val_data[:, 0 : model.config.block_size].contiguous()
         targets = val_data[:, 1 : model.config.block_size + 1].contiguous()
-        logits = model(input_ids)
+        logits = model(input_ids).logits
+ 
+        
         #loss = chunked_cross_entropy(logits, targets, chunk_size=0)
-        loss_func = TritonCrossEntropyLoss()
-        loss = loss_func(logits, targets)
+        #loss_func = TritonCrossEntropyLoss()
+        #loss = loss_func(logits, targets)
+
+        loss = chunked_cross_entropy(logits, targets, chunk_size=128)
+         
         losses[k] = loss.item()
         
     out = losses.mean()
