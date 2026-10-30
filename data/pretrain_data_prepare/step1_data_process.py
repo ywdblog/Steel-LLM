@@ -493,12 +493,12 @@ def main_run():
     dataset_process_info = {
         "baidu_baike": (input_path_root + "/baidu_baike", BaiduBaikeFormatHandler),
         "baidu_QA": (input_path_root + "/baidu_QA", BaiduQAFormatHandler),
-        # "BELLE_2M": (input_path_root + "/BELLE/2M", BELLEFormatHandler),
+        #"BELLE_2M": (input_path_root + "/BELLE/2M", BELLEFormatHandler),
         # "BELLE_3_5M": (input_path_root + "/BELLE/3_5M", BELLEConversationsFormatHandler),
-        # "firefly": (input_path_root + "/firefly/train_1M", FireflyFormatHandler),
-        # "moss": (input_path_root + "/moss", MossFormatHandler),
-        # "zhihu": (input_path_root + "/zhihu/data", ZhihuFormatHandler),
-        # "wiki_cn": (input_path_root + "/wiki_cn", WikiCNFormatHandler)
+        "firefly": (input_path_root + "/firefly", FireflyFormatHandler),
+        "moss": (input_path_root + "/moss", MossFormatHandler),
+        "zhihu": (input_path_root + "/zhihu", ZhihuFormatHandler),
+        "wiki_cn": (input_path_root + "/wiki_cn", WikiCNFormatHandler)
     }
 
     for dataset_name, info in dataset_process_info.items():

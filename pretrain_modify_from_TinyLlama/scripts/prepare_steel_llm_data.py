@@ -175,15 +175,28 @@ def prepare(
     match: str = "",
     max_files = 10000000000,
     # 序列长度
-    block_size = 2048,
+    block_size = 256, #2048
+
     # 一个数据分片有多少个序列
     # blocks_in_a_chunck=1024时，一个chunk是8M大小 
-    #blocks_in_a_chunck = 1024*200,
-    blocks_in_a_chunck = 256,
+    # blocks_in_a_chunck = 1024*200,
+    blocks_in_a_chunck = 48,
     # 读取cache_lines_num行json数据后进行一次保存
-    cache_lines_num = 10000,
+    cache_lines_num = 200, #处理tokinzer
     # 处理数据进程数
-    process_num = 64
+    process_num = 8
+
+    # '''
+    # chunk 是把“无限长的连续 token 流”切成“大小固定、可并行、可随机访问、可懒加载”的物理分片，让预训练 dataloader 能高效地按 block 取数据
+    
+    # - 消除 padding，提高 token 利用率
+    # - 固定大小，让偏移可以计算，不需要索引文件
+    # - 支持 block 级随机访问和 shuffle
+    # - 支持 mmap 懒加载，内存可控
+    # - 支持多进程并行写，天然分片
+    # - 控制文件数量和单个文件大小，平衡 I/O 效率
+    # '''
+
 
 
 ) -> None:

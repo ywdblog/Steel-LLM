@@ -482,8 +482,8 @@ def create_dataloader(
     weights = [el / sum_weights for el in weights]
 
     combined_dataset = CombinedDataset(datasets=datasets, seed=seed, weights=weights)
-
-    return DataLoader(combined_dataset, batch_size=batch_size, shuffle=False, pin_memory=True), datasets
+    return DataLoader(combined_dataset, batch_size=batch_size, shuffle=False, pin_memory=False, num_workers=0), datasets
+    #return DataLoader(combined_dataset, batch_size=batch_size, shuffle=False, pin_memory=True), datasets
 
 def test_create_dataloader():
     logging.basicConfig(level=logging.DEBUG)
